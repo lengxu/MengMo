@@ -50,6 +50,25 @@ class MengMoPortTasks(ModelBase):
     updated_time = Column(DATETIME, server_default=func.now(), onupdate=func.now())
     is_deleted = Column(TINYINT(2, unsigned=True), default="0", server_default="0")
 
+    def __init__(self, task_name=None, task_ip=None, task_params=None, task_start=None, task_end=None, task_status=1):
+        self.task_name = task_name
+        self.task_target_ip = task_ip
+        self.task_params = task_params
+        self.task_start = task_start
+        self.task_end = task_end
+        self.task_status = task_status
+
+    def __repr__(self):
+        s = {
+            1: 'READY',
+            2: 'RUNNING',
+            3: 'FINISHED',
+            4: 'ERROR',
+        }
+        return "<MengMoPortTask [{status}] {ip} '{params}'>".format(
+            status=s[self.task_status], ip=self.task_target_ip, params=self.task_params
+        )
+
 
 class MengMoPortResults(ModelBase):
     """
@@ -62,17 +81,22 @@ class MengMoPortResults(ModelBase):
     task_id = Column(BIGINT(20, unsigned=True))
     ip = Column(String(16), nullable=False)
     open_port = Column(String(6), nullable=False)
+    banner = Column(TEXT(), nullable=True)
     service = Column(TEXT(), nullable=True)
+    pushed_to_attack = Column(TINYINT(2, unsigned=True))
 
     created_time = Column(DATETIME, server_default=func.now())
     updated_time = Column(DATETIME, server_default=func.now(), onupdate=func.now())
     is_deleted = Column(TINYINT(2, unsigned=True), default="0", server_default="0")
 
-    def __init__(self, task_id, ip=None, open_port=None, service=None, created_time=None, updated_time=None, is_deleted=0):
+    def __init__(self, task_id, ip=None, open_port=None, service=None, banner=None, pushed_to_attack=0,
+                 created_time=None, updated_time=None, is_deleted=0):
         self.task_id = task_id
         self.ip = ip
         self.open_port = open_port
         self.service = service
+        self.banner = banner
+        self.pushed_to_attack = pushed_to_attack
         self.created_time = created_time if created_time is not None else datetime.datetime.now()
         self.updated_time = updated_time if updated_time is not None else datetime.datetime.now()
         self.is_deleted = is_deleted

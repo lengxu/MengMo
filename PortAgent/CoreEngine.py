@@ -8,12 +8,17 @@
 import Queue
 import time
 import threading
+import datetime
 
 from libnmap.process import NmapProcess
 from libnmap.parser import NmapParser
+from sqlalchemy.exc import SQLAlchemyError
 
 from Utils.LogHelper import logger
 from ShareMemory.Settings import settings
+from models import MengMoPortTasks
+from models import MengMoPortResults
+from models import DBSession
 
 __author__ = 'lightless'
 __email__ = 'root@lightless.me'
@@ -36,6 +41,9 @@ class PortAgentCoreEngine(object):
         # 存储线程的list
         self.thread_list = list()
         self.alive_thread_count = 0
+
+        # db session
+        self.session = DBSession()
 
         # 开启主循环, 线程分发器
         main_loop = threading.Thread(target=self.__run, name="PortAgentMainLoop")
@@ -117,22 +125,91 @@ class PortAgentCoreEngine(object):
             target_ip = task[0]
             target_params = task[1]
 
+            # 将该任务插入数据库
+            port_task = MengMoPortTasks()
+            port_task.task_name = "{0}_port_scan".format(target_ip)
+            port_task.task_target_ip = target_ip
+            port_task.task_params = target_params
+            port_task.task_start = datetime.datetime.now()
+            port_task.task_end = datetime.datetime.now()
+            port_task.task_status = 1
+            self.session.add(port_task)
+            try:
+                self.session.commit()
+            except SQLAlchemyError as e:
+                # 如果出错了, 继续搞下一个任务
+                logger.error(e)
+                self.session.rollback()
+                continue
+            task_id = port_task.id
             nmap_thread = threading.Thread(
                 target=self.nmap_func, name="{ip}_port_scan_thread".format(ip=target_ip),
-                args=(task, )
+                args=(task, task_id)
             )
             self.thread_list.append(nmap_thread)
             nmap_thread.start()
 
-    def nmap_func(self, task=tuple()):
+    def nmap_func(self, task=tuple(), task_id=None):
         """
         真正的nmap扫描函数
+        :param task_id:
         :param task:
         :return:
         """
+        # 从数据库中查询出任务
+        session = DBSession()
+        qs = session.query(MengMoPortTasks).filter(
+            MengMoPortTasks.is_deleted != 1, MengMoPortTasks.id == task_id
+        )
+        if not qs.first():
+            return False
+
         logger.info("{ip}端口扫描开始".format(ip=task[0]))
+        # 更新任务状态到RUNNING
+        qs.update({"task_status": 2})
+        try:
+            session.commit()
+        except SQLAlchemyError as e:
+            logger.error(e)
+            session.rollback()
+
         nm = NmapProcess(targets=task[0], options=task[1])
         nm.run()
+
+        # 解析扫描结果
+        nmap_report = NmapParser.parse(nm.stdout)
+        for host in nmap_report.hosts:
+            for open_port in host.get_open_ports():
+                logger.info(open_port)
+                banner = host.get_service(open_port[0]).banner
+                service = host.get_service(open_port[0]).service
+
+                # 将扫描结果添加到数据库中
+                port_result = MengMoPortResults(
+                    task_id, ip=task[0], open_port=open_port[0], banner=banner, service=service
+                )
+                session.add(port_result)
+                try:
+                    session.commit()
+                except SQLAlchemyError as e:
+                    logger.error(e)
+                    session.rollback()
+
+        # 根据返回值跟新任务状态到FINISHED 或 ERROR
+        qs = session.query(MengMoPortTasks).filter(
+            MengMoPortTasks.is_deleted != 1, MengMoPortTasks.id == task_id
+        )
+        if nm.rc == 0:
+            qs.update({"task_status": 3})
+        else:
+            qs.update({"task_status": 4})
+        try:
+            session.commit()
+        except SQLAlchemyError as e:
+            logger.error(e)
+            session.rollback()
+
         logger.info("{ip}端口扫描结束".format(ip=task[0]))
+        session.close()
 
 
