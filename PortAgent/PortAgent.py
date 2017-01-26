@@ -5,10 +5,7 @@
 # Filename: PortAgent.py
 # Time: 2017/1/24
 
-import time
-
-from libnmap.process import NmapProcess
-from libnmap.parser import NmapParser
+from CoreEngine import PortAgentCoreEngine
 
 __author__ = 'lightless'
 __email__ = 'root@lightless.me'
@@ -16,22 +13,25 @@ __email__ = 'root@lightless.me'
 
 if __name__ == '__main__':
 
-    nm = NmapProcess("45.32.42.3", options="-O -sV")
-    nm.run_background()
+    port_agent_engine = PortAgentCoreEngine()
+    port_agent_engine.add_task(("45.32.42.3", "-sV"))
 
-    while nm.is_running():
-        time.sleep(1)
-        print("running")
-
-    nmap_report = NmapParser.parse(nm.stdout)
-    
-    for h in nmap_report.hosts:
-        print(h)
-        print(h.get_open_ports())
-
-        for p in h.get_open_ports():
-            print(p)
-            print(h.get_service(p[0]))
+    # nm = NmapProcess("45.32.42.3", options="-O -sV")
+    # nm.run_background()
+    #
+    # while nm.is_running():
+    #     time.sleep(1)
+    #     print("running")
+    #
+    # nmap_report = NmapParser.parse(nm.stdout)
+    #
+    # for h in nmap_report.hosts:
+    #     print(h)
+    #     print(h.get_open_ports())
+    #
+    #     for p in h.get_open_ports():
+    #         print(p)
+    #         print(h.get_service(p[0]))
 
         # for os in h.os_class_probabilities():
         #     print(os)
