@@ -131,3 +131,6 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 .idea/
+ShareMemory/Settings.py
+alembic.ini
+alembic/
