@@ -75,6 +75,7 @@ class PortAgentCoreEngine(object):
         结束PortAgent
         :return:
         """
+        logger.info("接受到停止信号，等待PortAgent结束")
         self.end_process = True
 
     def update_thread_status(self):
