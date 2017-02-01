@@ -6,7 +6,7 @@
 # Time: 2017/1/24
 
 from Utils.LogHelper import logger
-from ShareMemory import ShareEngines
+from ShareMemory import ShareData
 from PortAgent.CoreEngine import PortAgentCoreEngine
 
 
@@ -17,7 +17,7 @@ __email__ = 'root@lightless.me'
 def main():
     logger.info("Starting MengMo...")
     logger.info("Starting Port Agent...")
-    ShareEngines.port_agent_engine = PortAgentCoreEngine()
+    ShareData.port_agent_engine = PortAgentCoreEngine()
 
 
 if __name__ == '__main__':
